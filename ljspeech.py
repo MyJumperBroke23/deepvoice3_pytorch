@@ -28,6 +28,7 @@ def build_from_path(in_dir, out_dir, num_workers=1, tqdm=lambda x: x):
         for line in f:
             parts = line.strip().split('|')
             wav_path = os.path.join(in_dir, 'wavs', '%s.wav' % parts[0])
+            print(parts)
             text = parts[2]
             if len(text) < hparams.min_text:
                 continue
