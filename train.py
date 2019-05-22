@@ -551,7 +551,7 @@ def guided_attentions(input_lengths, target_lengths, max_target_len, g=0.2):
     return W
 
 
-def train(device, model, data_loader, optimizer, writer,
+def train(device, model, data_loader, optimizer, 
           init_lr=0.002,
           checkpoint_dir=None, checkpoint_interval=None, nepochs=None,
           clip_thresh=1.0,
