@@ -934,7 +934,7 @@ if __name__ == "__main__":
 
     # Train!
     try:
-        train(device, model, data_loader, optimizer, writer,
+        train(device, model, data_loader, optimizer, 
               init_lr=hparams.initial_learning_rate,
               checkpoint_dir=checkpoint_dir,
               checkpoint_interval=hparams.checkpoint_interval,
