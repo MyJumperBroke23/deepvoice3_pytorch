@@ -715,7 +715,7 @@ Please set a larger value for ``max_position`` in hyper parameters.""".format(
 
         averaged_loss = running_loss / (len(data_loader))
 
-        print("Loss: {}".format(running_loss / (len(data_loader))))
+        print("Epoch: ", global_epoch ,"Loss: {}".format(running_loss / (len(data_loader))))
 
         global_epoch += 1
 
