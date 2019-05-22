@@ -374,7 +374,7 @@ def prepare_spec_image(spectrogram):
     return np.uint8(cm.magma(spectrogram.T) * 255)
 
 
-def eval_model(global_step, writer, device, model, checkpoint_dir, ismultispeaker):
+def eval_model(global_step, device, model, checkpoint_dir, ismultispeaker):
     # harded coded
     texts = [
         "Scientists at the CERN laboratory say they have discovered a new particle.",
@@ -409,26 +409,17 @@ def eval_model(global_step, writer, device, model, checkpoint_dir, ismultispeake
                 global_step, idx, speaker_str))
             save_alignment(path, alignment)
             tag = "eval_averaged_alignment_{}_{}".format(idx, speaker_str)
-            writer.add_image(tag, np.uint8(cm.viridis(np.flip(alignment, 1).T) * 255), global_step)
 
-            # Mel
-            writer.add_image("(Eval) Predicted mel spectrogram text{}_{}".format(idx, speaker_str),
-                             prepare_spec_image(mel), global_step)
 
             # Audio
             path = join(eval_output_dir, "step{:09d}_text{}_{}_predicted.wav".format(
                 global_step, idx, speaker_str))
             audio.save_wav(signal, path)
 
-            try:
-                writer.add_audio("(Eval) Predicted audio signal {}_{}".format(idx, speaker_str),
-                                 signal, global_step, sample_rate=hparams.sample_rate)
-            except Exception as e:
-                warn(str(e))
-                pass
+            
 
 
-def save_states(global_step, writer, mel_outputs, linear_outputs, attn, mel, y,
+def save_states(global_step, mel_outputs, linear_outputs, attn, mel, y,
                 input_lengths, checkpoint_dir=None):
     print("Save intermediate states at step {}".format(global_step))
 
@@ -442,7 +433,6 @@ def save_states(global_step, writer, mel_outputs, linear_outputs, attn, mel, y,
         for i, alignment in enumerate(attn):
             alignment = alignment[idx].cpu().data.numpy()
             tag = "alignment_layer{}".format(i + 1)
-            writer.add_image(tag, np.uint8(cm.viridis(np.flip(alignment, 1).T) * 255), global_step)
 
             # save files as well for now
             alignment_dir = join(checkpoint_dir, "alignment_layer{}".format(i + 1))
@@ -459,43 +449,39 @@ def save_states(global_step, writer, mel_outputs, linear_outputs, attn, mel, y,
         save_alignment(path, alignment)
 
         tag = "averaged_alignment"
-        writer.add_image(tag, np.uint8(cm.viridis(np.flip(alignment, 1).T) * 255), global_step)
+
 
     # Predicted mel spectrogram
     if mel_outputs is not None:
         mel_output = mel_outputs[idx].cpu().data.numpy()
         mel_output = prepare_spec_image(audio._denormalize(mel_output))
-        writer.add_image("Predicted mel spectrogram", mel_output, global_step)
+
 
     # Predicted spectrogram
     if linear_outputs is not None:
         linear_output = linear_outputs[idx].cpu().data.numpy()
         spectrogram = prepare_spec_image(audio._denormalize(linear_output))
-        writer.add_image("Predicted linear spectrogram", spectrogram, global_step)
+
 
         # Predicted audio signal
         signal = audio.inv_spectrogram(linear_output.T)
         signal /= np.max(np.abs(signal))
         path = join(checkpoint_dir, "step{:09d}_predicted.wav".format(
             global_step))
-        try:
-            writer.add_audio("Predicted audio signal", signal, global_step, sample_rate=hparams.sample_rate)
-        except Exception as e:
-            warn(str(e))
-            pass
+
         audio.save_wav(signal, path)
 
     # Target mel spectrogram
     if mel_outputs is not None:
         mel_output = mel[idx].cpu().data.numpy()
         mel_output = prepare_spec_image(audio._denormalize(mel_output))
-        writer.add_image("Target mel spectrogram", mel_output, global_step)
+
 
     # Target spectrogram
     if linear_outputs is not None:
         linear_output = y[idx].cpu().data.numpy()
         spectrogram = prepare_spec_image(audio._denormalize(linear_output))
-        writer.add_image("Target linear spectrogram", spectrogram, global_step)
+
 
 
 def logit(x, eps=1e-8):
@@ -705,14 +691,14 @@ Please set a larger value for ``max_position`` in hyper parameters.""".format(
 
             if global_step > 0 and global_step % checkpoint_interval == 0:
                 save_states(
-                    global_step, writer, mel_outputs, linear_outputs, attn,
+                    global_step, mel_outputs, linear_outputs, attn,
                     mel, y, input_lengths, checkpoint_dir)
                 save_checkpoint(
                     model, optimizer, global_step, checkpoint_dir, global_epoch,
                     train_seq2seq, train_postnet)
 
             if global_step > 0 and global_step % hparams.eval_interval == 0:
-                eval_model(global_step, writer, device, model, checkpoint_dir, ismultispeaker)
+                eval_model(global_step, device, model, checkpoint_dir, ismultispeaker)
 
             # Update
             loss.backward()
@@ -722,28 +708,13 @@ Please set a larger value for ``max_position`` in hyper parameters.""".format(
             optimizer.step()
 
             # Logs
-            writer.add_scalar("loss", float(loss.item()), global_step)
-            if train_seq2seq:
-                writer.add_scalar("done_loss", float(done_loss.item()), global_step)
-                writer.add_scalar("mel loss", float(mel_loss.item()), global_step)
-                writer.add_scalar("mel_l1_loss", float(mel_l1_loss.item()), global_step)
-                writer.add_scalar("mel_binary_div_loss", float(mel_binary_div.item()), global_step)
-            if train_postnet:
-                writer.add_scalar("linear_loss", float(linear_loss.item()), global_step)
-                writer.add_scalar("linear_l1_loss", float(linear_l1_loss.item()), global_step)
-                writer.add_scalar("linear_binary_div_loss", float(
-                    linear_binary_div.item()), global_step)
-            if train_seq2seq and hparams.use_guided_attention:
-                writer.add_scalar("attn_loss", float(attn_loss.item()), global_step)
-            if clip_thresh > 0:
-                writer.add_scalar("gradient norm", grad_norm, global_step)
-            writer.add_scalar("learning rate", current_lr, global_step)
+
 
             global_step += 1
             running_loss += loss.item()
 
         averaged_loss = running_loss / (len(data_loader))
-        writer.add_scalar("loss (per epoch)", averaged_loss, global_epoch)
+
         print("Loss: {}".format(running_loss / (len(data_loader))))
 
         global_epoch += 1
