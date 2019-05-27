@@ -65,7 +65,7 @@ hparams = hparam_tf.hparam.HParams(
     encoder_channels=512,
     decoder_channels=512,
     # Note: large converter channels requires significant computational cost
-    converter_channels=512,
+    converter_channels=256,
     query_position_rate=1.0,
     # can be computed by `compute_timestamp_ratio.py`.
     key_position_rate=1.385,  # 2.37 for jsut
