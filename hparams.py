@@ -63,7 +63,7 @@ hparams = hparam_tf.hparam.HParams(
     kernel_size=3,
     text_embed_dim=256,
     encoder_channels=512,
-    decoder_channels=512,
+    decoder_channels=256,
     # Note: large converter channels requires significant computational cost
     converter_channels=256,
     query_position_rate=1.0,
